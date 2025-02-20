@@ -1,3 +1,4 @@
+import pygame
 import torch
 
 from brain import Brain
@@ -29,13 +30,6 @@ class AgentPosition:
     def move_right(self, speed):
         self.x += speed
         return self
-
-    def out_of_boarder(self, world_width, world_height, size):
-        left = self.x
-        up = self.y
-        right = self.x + size
-        down = self.y + size
-        return not (left >= 0 and right <= world_width and up >= 0 and down <= world_height)
 
     def to_tensor(self):
         # 3-D tensor of (batch, sequence_length, data). Here sequence_length is just 1.
@@ -101,3 +95,7 @@ class VanillaAgent(Agent):
                 self.pos.copy().move_down(self.speed),
                 self.pos.copy().move_left(self.speed),
                 self.pos.copy().move_right(self.speed)]
+
+    def to_rectangle(self) -> pygame.Rect:
+        return pygame.Rect(
+            self.pos.x, self.pos.y, self.size, self.size)

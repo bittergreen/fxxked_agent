@@ -3,13 +3,13 @@ from torch import optim
 
 from agent import AgentPosition
 from brain import SurvivalLSTM
-from environments.vanilla_env import World
+from worlds.vanilla import VanillaWorld
 
 
 def train_vanilla_agent():
 
     model = SurvivalLSTM()
-    world = World()
+    world = VanillaWorld()
     optimizer = optim.Adam(model.parameters(), lr=0.001)
     num_epochs = 1000
 
@@ -18,18 +18,18 @@ def train_vanilla_agent():
     # Forcing model not to repeat the recent #memory_length steps of movements
     # Larger memory_length might force the agent to draw more complex patterns,
     # while it might need longer max_step and more num_epochs to train
-    memory_length = 5
+    memory_length = 3
 
     def compute_reward(position: AgentPosition):
-        # return a single value of reward, ranging within [-1, 1]
         reward = 1.0
-        if position.out_of_boarder(world.width, world.height, agent.size):
+        if world.agent_is_dead():
             reward = -10.0
         if position in prev_positions:
             reward = -2.0
         return reward
 
     def train_step():
+        model.reset_hidden_state()
         for n in range(max_step):
             pos = agent.pos.to_tensor()  # current position is maintained by agent.pos
             pos_copy = agent.pos.copy()
@@ -38,7 +38,8 @@ def train_vanilla_agent():
 
             action = torch.argmax(out, dim=-1).item()
             log_prob = torch.log(out[:, action])  # compute the log probability of the chosen action
-            agent.move(action)
+            world.step(action)
+
             new_pos = agent.pos
             reward = compute_reward(new_pos)
             loss = -log_prob * reward  # policy gradient update for reinforcement learning
@@ -50,7 +51,7 @@ def train_vanilla_agent():
             if len(prev_positions) > memory_length:
                 prev_positions.pop(0)
 
-            if new_pos.out_of_boarder(world.width, world.height, agent.size):
+            if world.agent_is_dead():
                 print(f"Max step: {n}")
                 break
 
@@ -58,9 +59,9 @@ def train_vanilla_agent():
     for i in range(num_epochs):
         print(f"Epoch num: {i}")
         # need to reset agent position every single epoch
-        world.spawn_agent_for_training(model)
+        world.spawn_agent(model)
         agent = world.agent
         train_step()
 
-    return model
+    return world, model
 
